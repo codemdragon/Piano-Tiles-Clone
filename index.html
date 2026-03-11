@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TileBeats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     PRELOADER
+═══════════════════════════════════════ -->
+<div id="preloader">
+  <div class="preloader-inner">
+    <div class="tile-logo">
+      <span class="tile black"></span>
+      <span class="tile white"></span>
+      <span class="tile black"></span>
+      <span class="tile white"></span>
+    </div>
+    <div class="preloader-title">TileBeats</div>
+    <div class="preloader-bar"><div class="preloader-fill"></div></div>
+    <div class="preloader-text">Loading...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN MENU
+═══════════════════════════════════════ -->
+<div id="screen-menu" class="screen hidden">
+  <div class="menu-bg">
+    <div class="bg-tile" style="--d:0s;--x:10%;--s:60px"></div>
+    <div class="bg-tile" style="--d:0.5s;--x:25%;--s:40px"></div>
+    <div class="bg-tile" style="--d:1s;--x:45%;--s:80px"></div>
+    <div class="bg-tile" style="--d:1.5s;--x:65%;--s:50px"></div>
+    <div class="bg-tile" style="--d:2s;--x:80%;--s:70px"></div>
+  </div>
+  <div class="menu-content">
+    <div class="menu-logo">
+      <div class="logo-tiles">
+        <div class="lt black"></div>
+        <div class="lt white"></div>
+        <div class="lt black"></div>
+        <div class="lt white"></div>
+      </div>
+      <h1>TileBeats</h1>
+      <p class="tagline">Tap. Hold. Vibe.</p>
+    </div>
+    <div class="stats-bar">
+      <div class="stat"><span class="stat-icon">🪙</span><span id="menu-coins">0</span></div>
+      <div class="stat"><span class="stat-icon">🏆</span><span id="menu-wins">0</span></div>
+      <div class="stat"><span class="stat-icon">⭐</span><span id="menu-stars">0</span></div>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn-primary" onclick="App.showSongSelect()">
+        <span class="btn-icon">▶</span> Play
+      </button>
+      <button class="btn-secondary" onclick="App.showAdmin()">
+        <span class="btn-icon">⚙</span> Admin
+      </button>
+    </div>
+    <div class="menu-footer">
+      <button class="icon-btn" onclick="App.showSettings()" title="Settings">⚙️</button>
+      <button class="icon-btn" onclick="App.showLeaderboard()" title="Leaderboard">📊</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SONG SELECT
+═══════════════════════════════════════ -->
+<div id="screen-select" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="App.showMenu()">‹</button>
+    <h2>Choose Song</h2>
+    <div class="header-coins">🪙 <span id="select-coins">0</span></div>
+  </div>
+  <div class="category-tabs" id="category-tabs">
+    <button class="cat-tab active" data-cat="all">All</button>
+  </div>
+  <div class="song-grid" id="song-grid">
+    <!-- Dynamically populated -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     GAME SCREEN
+═══════════════════════════════════════ -->
+<div id="screen-game" class="screen hidden">
+  <div class="game-hud">
+    <div class="hud-left">
+      <button class="hud-btn" onclick="Game.pause()">⏸</button>
+      <span class="hud-title" id="hud-title">Song Name</span>
+    </div>
+    <div class="hud-center">
+      <div class="score-display" id="score-display">0</div>
+      <div class="combo-display" id="combo-display"></div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-coins">🪙 <span id="hud-coins">0</span></div>
+      <div class="accuracy-display" id="accuracy-display">100%</div>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div id="game-canvas-wrap">
+    <canvas id="game-canvas"></canvas>
+    <div class="hit-line"></div>
+    <div class="lane-overlay" id="lane-overlay"></div>
+    <div class="hit-effects" id="hit-effects"></div>
+  </div>
+  <div class="key-indicators" id="key-indicators">
+    <div class="key-ind" data-lane="0"></div>
+    <div class="key-ind" data-lane="1"></div>
+    <div class="key-ind" data-lane="2"></div>
+    <div class="key-ind" data-lane="3"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     PAUSE OVERLAY
+═══════════════════════════════════════ -->
+<div id="overlay-pause" class="overlay hidden">
+  <div class="overlay-card">
+    <h3>Paused</h3>
+    <div class="pause-stats">
+      <div>Score: <strong id="pause-score">0</strong></div>
+      <div>Combo: <strong id="pause-combo">0</strong></div>
+    </div>
+    <div class="overlay-buttons">
+      <button class="btn-primary" onclick="Game.resume()">▶ Resume</button>
+      <button class="btn-secondary" onclick="Game.restart()">↺ Restart</button>
+      <button class="btn-ghost" onclick="Game.quit()">✕ Quit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     RESULT SCREEN
+═══════════════════════════════════════ -->
+<div id="screen-result" class="screen hidden">
+  <div class="result-bg"></div>
+  <div class="result-content">
+    <div class="result-rank" id="result-rank">S</div>
+    <div class="result-stars" id="result-stars">
+      <span class="rstar">★</span><span class="rstar">★</span><span class="rstar">★</span>
+    </div>
+    <h2 id="result-title">Song Title</h2>
+    <div class="result-stats">
+      <div class="rs"><span>Score</span><strong id="rs-score">0</strong></div>
+      <div class="rs"><span>Max Combo</span><strong id="rs-combo">0</strong></div>
+      <div class="rs"><span>Accuracy</span><strong id="rs-accuracy">100%</strong></div>
+      <div class="rs"><span>Perfect</span><strong id="rs-perfect">0</strong></div>
+      <div class="rs"><span>Good</span><strong id="rs-good">0</strong></div>
+      <div class="rs"><span>Miss</span><strong id="rs-miss">0</strong></div>
+    </div>
+    <div class="result-coins">+<span id="result-coins">0</span> 🪙</div>
+    <div class="result-buttons">
+      <button class="btn-primary" onclick="Game.restart()">↺ Play Again</button>
+      <button class="btn-secondary" onclick="App.showSongSelect()">⟵ Songs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SETTINGS OVERLAY
+═══════════════════════════════════════ -->
+<div id="overlay-settings" class="overlay hidden">
+  <div class="overlay-card wide">
+    <div class="overlay-header">
+      <h3>Settings</h3>
+      <button class="close-btn" onclick="App.closeOverlay('overlay-settings')">✕</button>
+    </div>
+    <div class="setting-row">
+      <label>Music Volume</label>
+      <input type="range" id="vol-music" min="0" max="100" value="80" oninput="Audio.setMusicVol(this.value)">
+      <span id="vol-music-val">80%</span>
+    </div>
+    <div class="setting-row">
+      <label>SFX Volume</label>
+      <input type="range" id="vol-sfx" min="0" max="100" value="80" oninput="Audio.setSfxVol(this.value)">
+      <span id="vol-sfx-val">80%</span>
+    </div>
+    <div class="setting-row">
+      <label>Note Speed</label>
+      <input type="range" id="note-speed" min="1" max="5" step="0.5" value="2.5" oninput="Settings.setSpeed(this.value)">
+      <span id="note-speed-val">2.5x</span>
+    </div>
+    <div class="setting-row">
+      <label>Vibration</label>
+      <button class="toggle-btn" id="toggle-vibe" onclick="Settings.toggleVibe()">ON</button>
+    </div>
+    <div class="setting-row">
+      <label>Theme</label>
+      <div class="theme-options">
+        <button class="theme-opt active" data-theme="dark" onclick="Settings.setTheme('dark')">Dark</button>
+        <button class="theme-opt" data-theme="neon" onclick="Settings.setTheme('neon')">Neon</button>
+        <button class="theme-opt" data-theme="pastel" onclick="Settings.setTheme('pastel')">Pastel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     ADMIN PANEL
+═══════════════════════════════════════ -->
+<div id="screen-admin" class="screen hidden">
+  <div class="screen-header">
+    <button class="back-btn" onclick="App.showMenu()">‹</button>
+    <h2>Admin Panel</h2>
+    <div class="admin-badge">🔐</div>
+  </div>
+  <div id="admin-auth" class="admin-section">
+    <div class="auth-card">
+      <h3>Enter Admin Key</h3>
+      <p>A fine-grained access key is required to manage content.</p>
+      <input type="password" id="admin-key-input" placeholder="Paste your admin key..." class="admin-input">
+      <button class="btn-primary" onclick="Admin.authenticate()">Unlock</button>
+      <div class="auth-error hidden" id="auth-error">Invalid key. Try again.</div>
+    </div>
+  </div>
+  <div id="admin-panel" class="hidden">
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="songs" onclick="Admin.switchTab('songs')">🎵 Songs</button>
+      <button class="admin-tab" data-tab="upload" onclick="Admin.switchTab('upload')">⬆ Upload</button>
+      <button class="admin-tab" data-tab="settings" onclick="Admin.switchTab('settings')">🎨 Settings</button>
+    </div>
+
+    <!-- Songs Tab -->
+    <div id="admin-tab-songs" class="admin-tab-content">
+      <div class="admin-song-list" id="admin-song-list"></div>
+    </div>
+
+    <!-- Upload Tab -->
+    <div id="admin-tab-upload" class="admin-tab-content hidden">
+      <div class="upload-form">
+        <h3>Add New Song</h3>
+        <div class="form-group">
+          <label>Song Title *</label>
+          <input type="text" id="up-title" class="admin-input" placeholder="e.g. Moonlight Sonata">
+        </div>
+        <div class="form-group">
+          <label>Artist</label>
+          <input type="text" id="up-artist" class="admin-input" placeholder="e.g. Beethoven">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="up-category" class="admin-input" placeholder="e.g. Classical, Pop, EDM">
+        </div>
+        <div class="form-group">
+          <label>Difficulty (1-5)</label>
+          <input type="range" id="up-difficulty" min="1" max="5" value="3" oninput="document.getElementById('up-diff-val').textContent=this.value">
+          <span id="up-diff-val">3</span>
+        </div>
+        <div class="form-group">
+          <label>Cover Image (optional)</label>
+          <div class="file-drop" id="img-drop" onclick="document.getElementById('up-image').click()">
+            <div class="drop-icon">🖼</div>
+            <div>Tap to select image</div>
+            <div class="drop-sub">JPG, PNG, WebP</div>
+          </div>
+          <input type="file" id="up-image" accept="image/*" style="display:none" onchange="Admin.previewImage(this)">
+          <img id="img-preview" class="img-preview hidden" alt="Preview">
+        </div>
+        <div class="form-group">
+          <label>MP3 File *</label>
+          <div class="file-drop" id="mp3-drop" onclick="document.getElementById('up-audio').click()">
+            <div class="drop-icon">🎵</div>
+            <div id="mp3-name">Tap to select MP3</div>
+            <div class="drop-sub">MP3 files only</div>
+          </div>
+          <input type="file" id="up-audio" accept=".mp3,audio/mpeg" style="display:none" onchange="Admin.previewAudio(this)">
+        </div>
+        <div class="form-group">
+          <label>Beat Sensitivity</label>
+          <input type="range" id="up-sensitivity" min="50" max="200" value="120" oninput="document.getElementById('up-sens-val').textContent=this.value">
+          <span id="up-sens-val">120</span>
+          <p class="hint">Higher = more tiles. Lower = fewer tiles.</p>
+        </div>
+        <button class="btn-primary full-width" onclick="Admin.analyzAndUpload()">
+          <span id="upload-btn-text">🎹 Analyze & Add Song</span>
+        </button>
+        <div id="upload-progress" class="upload-progress hidden">
+          <div class="upload-progress-fill" id="upload-progress-fill"></div>
+          <div id="upload-progress-text">Analyzing beats...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- App Settings Tab -->
+    <div id="admin-tab-settings" class="admin-tab-content hidden">
+      <div class="upload-form">
+        <h3>App Appearance</h3>
+        <div class="form-group">
+          <label>App Title</label>
+          <input type="text" id="as-title" class="admin-input" value="TileBeats">
+        </div>
+        <div class="form-group">
+          <label>Tagline</label>
+          <input type="text" id="as-tagline" class="admin-input" value="Tap. Hold. Vibe.">
+        </div>
+        <div class="form-group">
+          <label>Default Background</label>
+          <div class="theme-options">
+            <button class="theme-opt active" data-bg="dark" onclick="Admin.setBg('dark',this)">Dark</button>
+            <button class="theme-opt" data-bg="neon" onclick="Admin.setBg('neon',this)">Neon</button>
+            <button class="theme-opt" data-bg="aurora" onclick="Admin.setBg('aurora',this)">Aurora</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Categories (comma-separated)</label>
+          <input type="text" id="as-categories" class="admin-input" value="Pop, Classical, EDM, Jazz, Rock">
+        </div>
+        <button class="btn-primary full-width" onclick="Admin.saveSettings()">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     EDIT SONG OVERLAY
+═══════════════════════════════════════ -->
+<div id="overlay-edit" class="overlay hidden">
+  <div class="overlay-card wide">
+    <div class="overlay-header">
+      <h3>Edit Song</h3>
+      <button class="close-btn" onclick="App.closeOverlay('overlay-edit')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="edit-title" class="admin-input">
+    </div>
+    <div class="form-group">
+      <label>Artist</label>
+      <input type="text" id="edit-artist" class="admin-input">
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <input type="text" id="edit-category" class="admin-input">
+    </div>
+    <div class="form-group">
+      <label>Difficulty</label>
+      <input type="range" id="edit-difficulty" min="1" max="5" value="3" oninput="document.getElementById('edit-diff-val').textContent=this.value">
+      <span id="edit-diff-val">3</span>
+    </div>
+    <input type="hidden" id="edit-song-id">
+    <div class="overlay-buttons">
+      <button class="btn-primary" onclick="Admin.saveEdit()">💾 Save</button>
+      <button class="btn-danger" onclick="Admin.deleteSong()">🗑 Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/db.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/beatdetect.js"></script>
+<script src="js/game.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
