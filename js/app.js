@@ -92,7 +92,7 @@ const App = (() => {
     renderSongGrid(cat);
   }
 
-  function renderSongGrid(cat) {
+  async function renderSongGrid(cat) {
     const songs = DB.getSongs();
     const filtered = cat === 'all' ? songs : songs.filter(s => s.category === cat);
     const grid = document.getElementById('song-grid');
@@ -109,18 +109,22 @@ const App = (() => {
       return;
     }
 
-    grid.innerHTML = filtered.map(song => {
+    // Resolve covers from IndexedDB in parallel
+    const covers = await Promise.all(filtered.map(s => DB.getSongCover(s.id)));
+
+    grid.innerHTML = filtered.map((song, i) => {
       const best = DB.getBestScore(song.id);
       const stars = best ? '★'.repeat(best.stars) + '☆'.repeat(3 - best.stars) : '';
       const bestScore = best ? best.score.toLocaleString() : null;
-      const diffDots = Array.from({length: 5}, (_, i) =>
-        `<span class="diff-dot ${i < (song.difficulty || 1) ? 'active' : 'inactive'}"></span>`
+      const diffDots = Array.from({length: 5}, (_, j) =>
+        `<span class="diff-dot ${j < (song.difficulty || 1) ? 'active' : 'inactive'}"></span>`
       ).join('');
+      const coverUrl = covers[i];
 
       return `
         <div class="song-card" onclick="App.startSong('${song.id}')">
           <div class="song-cover">
-            ${song.coverDataUrl ? `<img src="${song.coverDataUrl}" alt="">` : (song.coverEmoji || '🎵')}
+            ${coverUrl ? `<img src="${coverUrl}" alt="">` : (song.coverEmoji || '🎵')}
           </div>
           <div class="song-info">
             <div class="song-title">${esc(song.title)}</div>
@@ -140,11 +144,15 @@ const App = (() => {
   async function startSong(id) {
     const song = DB.getSong(id);
     if (!song) { toast('Song not found'); return; }
-    if (!song.audioDataUrl) { toast('⚠ Demo song — add real audio in Admin'); return; }
+
+    // Resolve audio from IndexedDB
+    const audioDataUrl = await DB.getSongAudio(id);
+    if (!audioDataUrl) { toast('⚠ Demo song — add real audio in Admin'); return; }
 
     Audio.ensureCtx();
     showScreen('screen-game');
-    await Game.load(song);
+    // Pass resolved audio to the game
+    await Game.load({ ...song, audioDataUrl });
     Game.start();
   }
 

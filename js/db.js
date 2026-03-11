@@ -1,9 +1,14 @@
 /**
- * DB — localStorage-based persistence (simulates db.json)
+ * DB — Hybrid storage: localStorage for metadata, IndexedDB for large blobs
  * Stores songs, scores, settings, coins, wins
  */
 const DB = (() => {
   const KEY = 'tilebeats_db';
+  const IDB_NAME = 'tilebeats_blobs';
+  const IDB_VERSION = 1;
+  const STORE_NAME = 'blobs';
+
+  let idb = null; // IndexedDB reference
 
   const defaults = {
     songs: [],
@@ -24,16 +29,62 @@ const DB = (() => {
       background: 'dark',
       categories: ['Pop', 'Classical', 'EDM', 'Jazz', 'Rock']
     },
-    adminKey: 'ADMIN-2024-TILEBEATS'   // default key — change in admin
+    adminKey: 'ADMIN-2024-TILEBEATS'
   };
 
   let data = null;
 
+  // ── IndexedDB Setup ───────────────────────────────
+  function openIDB() {
+    return new Promise((resolve, reject) => {
+      if (idb) { resolve(idb); return; }
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      req.onsuccess = (e) => { idb = e.target.result; resolve(idb); };
+      req.onerror = (e) => { console.warn('IndexedDB error:', e); reject(e); };
+    });
+  }
+
+  async function blobPut(key, value) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  async function blobGet(key) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  async function blobDelete(key) {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e);
+    });
+  }
+
+  // ── localStorage (metadata only) ──────────────────
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       data = raw ? { ...defaults, ...JSON.parse(raw) } : { ...defaults };
-      // Merge nested objects
       data.settings = { ...defaults.settings, ...data.settings };
       data.appConfig = { ...defaults.appConfig, ...data.appConfig };
     } catch (e) {
@@ -42,7 +93,11 @@ const DB = (() => {
   }
 
   function save() {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+    } catch (e) {
+      console.warn('localStorage save error:', e);
+    }
   }
 
   function get() {
@@ -50,6 +105,7 @@ const DB = (() => {
     return data;
   }
 
+  // ── Song CRUD ─────────────────────────────────────
   function getSongs() {
     return get().songs;
   }
@@ -58,10 +114,24 @@ const DB = (() => {
     return getSongs().find(s => s.id === id);
   }
 
-  function addSong(song) {
+  /**
+   * Add a song. Audio & cover blobs go to IndexedDB, metadata to localStorage.
+   */
+  async function addSong(song) {
     const db = get();
-    song.id = 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    song.id = 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     song.addedAt = Date.now();
+
+    // Store large blobs in IndexedDB
+    if (song.audioDataUrl) {
+      await blobPut('audio_' + song.id, song.audioDataUrl);
+      song.audioDataUrl = '__IDB__'; // placeholder
+    }
+    if (song.coverDataUrl) {
+      await blobPut('cover_' + song.id, song.coverDataUrl);
+      song.coverDataUrl = '__IDB__'; // placeholder
+    }
+
     db.songs.push(song);
     save();
     return song;
@@ -78,13 +148,43 @@ const DB = (() => {
     return null;
   }
 
-  function deleteSong(id) {
+  async function deleteSong(id) {
     const db = get();
     db.songs = db.songs.filter(s => s.id !== id);
     delete db.scores[id];
     save();
+    // Clean up blobs
+    try {
+      await blobDelete('audio_' + id);
+      await blobDelete('cover_' + id);
+    } catch (e) { /* ok */ }
   }
 
+  /**
+   * Get the audio data URL for a song. Resolves from IndexedDB if needed.
+   */
+  async function getSongAudio(songId) {
+    const song = getSong(songId);
+    if (!song) return null;
+    if (song.audioDataUrl === '__IDB__') {
+      return await blobGet('audio_' + songId);
+    }
+    return song.audioDataUrl || null;
+  }
+
+  /**
+   * Get the cover image data URL for a song. Resolves from IndexedDB if needed.
+   */
+  async function getSongCover(songId) {
+    const song = getSong(songId);
+    if (!song) return null;
+    if (song.coverDataUrl === '__IDB__') {
+      return await blobGet('cover_' + songId);
+    }
+    return song.coverDataUrl || null;
+  }
+
+  // ── Scores ────────────────────────────────────────
   function getBestScore(songId) {
     return get().scores[songId] || null;
   }
@@ -95,7 +195,6 @@ const DB = (() => {
     if (!current || result.score > current.score) {
       db.scores[songId] = result;
     }
-    // Add coins
     db.coins += result.coinsEarned || 0;
     if (result.stars === 3) db.totalStars++;
     if (result.passed) db.wins++;
@@ -108,6 +207,7 @@ const DB = (() => {
     return { coins: db.coins, wins: db.wins, stars: db.totalStars };
   }
 
+  // ── Settings ──────────────────────────────────────
   function getSettings() {
     return get().settings;
   }
@@ -132,11 +232,10 @@ const DB = (() => {
     return key.trim() === get().adminKey;
   }
 
-  // Seed sample songs (demo tiles without real audio)
+  // ── Seed ──────────────────────────────────────────
   function seedIfEmpty() {
     const db = get();
     if (db.songs.length === 0) {
-      // We'll add demo songs that use beat detection
       db.songs = [
         {
           id: 'demo_1',
@@ -157,11 +256,10 @@ const DB = (() => {
     }
   }
 
-  // Generate demo tile pattern (for testing without real audio)
   function generateDemoTiles(bpm, difficulty) {
     const tiles = [];
     const beatInterval = 60 / bpm;
-    const totalDuration = 30; // 30 seconds
+    const totalDuration = 30;
     const lanes = [0, 1, 2, 3];
     let t = 1.0;
     let prevLane = -1;
@@ -185,8 +283,16 @@ const DB = (() => {
     return tiles;
   }
 
+  // ── Init ──────────────────────────────────────────
   load();
   seedIfEmpty();
+  openIDB().catch(e => console.warn('IDB init:', e));
 
-  return { get, getSongs, getSong, addSong, updateSong, deleteSong, getBestScore, saveScore, getStats, getSettings, saveSettings, getAppConfig, saveAppConfig, checkAdminKey, generateDemoTiles };
+  return {
+    get, getSongs, getSong, addSong, updateSong, deleteSong,
+    getBestScore, saveScore, getStats,
+    getSettings, saveSettings, getAppConfig, saveAppConfig,
+    checkAdminKey, generateDemoTiles,
+    getSongAudio, getSongCover
+  };
 })();

@@ -44,7 +44,7 @@ const Admin = (() => {
   }
 
   // ── Song List ─────────────────────────────────────
-  function refreshSongList() {
+  async function refreshSongList() {
     const songs = DB.getSongs();
     const list = document.getElementById('admin-song-list');
 
@@ -58,10 +58,13 @@ const Admin = (() => {
       return;
     }
 
-    list.innerHTML = songs.map(s => `
+    // Resolve covers from IndexedDB
+    const covers = await Promise.all(songs.map(s => DB.getSongCover(s.id)));
+
+    list.innerHTML = songs.map((s, i) => `
       <div class="admin-song-item">
         <div class="asi-cover">
-          ${s.coverDataUrl ? `<img src="${s.coverDataUrl}" alt="">` : (s.coverEmoji || '🎵')}
+          ${covers[i] ? `<img src="${covers[i]}" alt="">` : (s.coverEmoji || '🎵')}
         </div>
         <div class="asi-info">
           <div class="asi-title">${esc(s.title)}</div>
@@ -101,12 +104,12 @@ const Admin = (() => {
     editingSongId = null;
   }
 
-  function deleteSong() {
+  async function deleteSong() {
     if (!editingSongId) return;
     if (!confirm('Delete this song permanently?')) return;
-    DB.deleteSong(editingSongId);
+    await DB.deleteSong(editingSongId);
     App.closeOverlay('overlay-edit');
-    refreshSongList();
+    await refreshSongList();
     App.toast('🗑 Song deleted');
     editingSongId = null;
   }
