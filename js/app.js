@@ -60,7 +60,7 @@ const App = (() => {
     const stats = DB.getStats();
     document.getElementById('menu-coins').textContent = stats.coins.toLocaleString();
     document.getElementById('menu-wins').textContent = stats.wins.toLocaleString();
-    document.getElementById('menu-stars').textContent = stats.totalStars.toLocaleString();
+    document.getElementById('menu-stars').textContent = (stats.stars || 0).toLocaleString();
     document.getElementById('select-coins').textContent = stats.coins.toLocaleString();
   }
 
